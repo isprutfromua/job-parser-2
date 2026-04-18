@@ -2,7 +2,7 @@ name: Job Parser Schedule
 
 on:
   schedule:
-    - cron: "0 5-17/2 * * *"
+    - cron: "0 7-17/1 * * *"
   workflow_dispatch:
 
 concurrency:
