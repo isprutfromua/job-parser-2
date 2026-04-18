@@ -55,6 +55,7 @@ async function processQuery({
     queryKey: query.queryKey,
     source: query.source,
     title: query.title,
+    url: query.url,
     pagesVisited: 0,
     newRows: 0,
     newJobs: [],
@@ -234,6 +235,7 @@ async function runCrawler({ queryKey, maxPages }) {
         runSummaries.push({
           queryKey: query.queryKey,
           title: query.title,
+          url: query.url,
           source: query.source,
           pagesVisited: 0,
           newRows: 0,

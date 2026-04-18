@@ -14,25 +14,25 @@ const QUERIES = [
   {
     queryKey: "robota_vinnytsia_it",
     source: "robota",
-    title: "Robota.ua - IT jobs in Vinnytsia (Вінниця)",
+    title: "Robota.ua - IT jobs in Vinnytsia",
     url: "https://robota.ua/zapros/vinnytsia/params;rubrics=1",
   },
   {
     queryKey: "robota_ukraine_defense_parttime",
     source: "robota",
-    title: "Robota.ua - Defense jobs in Ukraine (Віддалено)",
+    title: "Robota.ua - Defense jobs in Ukraine",
     url: "https://robota.ua/zapros/ukraine/params;scheduleIds=3;rubrics=1;branchIds=oboronna-promyslovist",
   },
   {
     queryKey: "robota_vinnytsia_defense",
     source: "robota",
-    title: "Robota.ua - Defense jobs in Vinnytsia (Вінниця)",
+    title: "Robota.ua - Defense jobs in Vinnytsia",
     url: "https://robota.ua/zapros/vinnytsia/params;branchIds=oboronna-promyslovist",
   },
   {
     queryKey: "work_vinnytsia_defense",
     source: "work",
-    title: "Work.ua - Defense jobs in Vinnytsia (Вінниця)",
+    title: "Work.ua - Defense jobs in Vinnytsia",
     url: "https://www.work.ua/jobs-vinnytsya-industry-defense-industrial-complex/?days=123",
   },
   {
@@ -44,7 +44,7 @@ const QUERIES = [
   {
     queryKey: "work_vinnytsia_it",
     source: "work",
-    title: "Work.ua - IT jobs in Vinnytsia (Вінниця)",
+    title: "Work.ua - IT jobs in Vinnytsia",
     url: "https://www.work.ua/jobs-vinnytsya-it-industry-it/?days=123",
   },
   {
@@ -56,7 +56,7 @@ const QUERIES = [
   {
     queryKey: "djinni_vinnytsia_miltech",
     source: "djinni",
-    title: "Djinni - Miltech jobs in Vinnytsia (Вінниця)",
+    title: "Djinni - Miltech jobs in Vinnytsia",
     url: "https://djinni.co/jobs/?search_type=basic-search&region=UKR&location=vinnytsia&editorial=miltech",
   },
   {
@@ -68,7 +68,7 @@ const QUERIES = [
   {
     queryKey: "djinni_vinnytsia_all",
     source: "djinni",
-    title: "Djinni - All jobs in Vinnytsia (Вінниця)",
+    title: "Djinni - All jobs in Vinnytsia",
     url: "https://djinni.co/jobs/?search_type=basic-search&region=UKR&location=vinnytsia",
   },
   {
@@ -80,7 +80,7 @@ const QUERIES = [
   {
     queryKey: "dou_vinnytsia",
     source: "dou_family",
-    title: "DOU - All jobs in Vinnytsia (Вінниця)",
+    title: "DOU - All jobs in Vinnytsia",
     family: "dou",
     url: "https://jobs.dou.ua/vacancies/?city=Vinnytsia",
   },
@@ -94,7 +94,7 @@ const QUERIES = [
   {
     queryKey: "deftech_vinnytsia",
     source: "dou_family",
-    title: "DOU Family - Deftech jobs in Vinnytsia (Вінниця)",
+    title: "DOU Family - Deftech jobs in Vinnytsia",
     family: "deftech",
     url: "https://deftech.dou.ua/jobs/?city=%D0%92%D1%96%D0%BD%D0%BD%D0%B8%D1%86%D1%8F",
   },

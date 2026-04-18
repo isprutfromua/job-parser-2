@@ -28,7 +28,12 @@ function buildNotificationGroups(runSummaries) {
     }
 
     const lines = grouped.get(item.source);
-    lines.push(`🔎 ${item.title} \n 😎 ${jobs.length} нових вакансій`);
+    const sourceUrl = item.url || "";
+    lines.push(`🔎 ${item.title}`);
+    if (sourceUrl) {
+      lines.push(`🌎 ${sourceUrl}`);
+    }
+    lines.push(`😎 ${jobs.length} нових вакансій`);
     for (const job of jobs) {
       let jobTitle = escapeTitle(job.title).replace(/\$/g, "");
       lines.push(`✨ ${jobTitle}`);
