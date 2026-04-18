@@ -28,17 +28,10 @@ function buildNotificationGroups(runSummaries) {
     }
 
     const lines = grouped.get(item.source);
-    lines.push(`🔎 ${item.title} \n 😎 ${jobs.length} new jobs`);
+    lines.push(`🔎 ${item.title} \n 😎 ${jobs.length} нових вакансій`);
     for (const job of jobs) {
-      // if title contains company - remove it from title to avoid duplication
-      let jobTitle = escapeTitle(job.title);
-      if (job.company) {
-        jobTitle = jobTitle.replace(new RegExp(`\\b${job.company}\\b`, 'gi'), '').trim();
-      }
+      let jobTitle = escapeTitle(job.title).replace(/\$/g, "");
       lines.push(`✨ ${jobTitle}`);
-      if (job.company && !job.title.toLowerCase().includes(job.company.toLowerCase())) {
-        lines.push(`🏢 ${escapeTitle(job.company).replace(/\$/g, "")}`);
-      }
       lines.push(`🔗 ${job.canonicalUrl}\n`);
     }
     lines.push("\n");
