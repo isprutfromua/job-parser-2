@@ -1,0 +1,71 @@
+name: Job Parser Schedule
+
+on:
+  schedule:
+    - cron: "0 5-17/2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: job-parser-schedule
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run-parser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      DB_PATH: ./data/jobs.sqlite
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Ensure DB directory exists
+        run: mkdir -p data
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Scheduled run (once)
+        if: ${{ github.event_name == 'schedule' }}
+        run: npm run crawl
+
+      - name: Manual run (once)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: npm run crawl
+
+      - name: Commit database changes
+        if: ${{ success() }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          if [[ -z "$(git status --porcelain -- data/jobs.sqlite)" ]]; then
+            echo "No DB changes to commit"
+          else
+            git add .
+            git commit -m "Database update: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            git push
+          fi

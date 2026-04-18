@@ -1,0 +1,24 @@
+{
+  "name": "scrapper-2",
+  "version": "1.0.0",
+  "description": "Node.js + Playwright scraping framework for jobs sites",
+  "main": "src/index.js",
+  "scripts": {
+    "crawl": "node src/index.js",
+    "crawl:debug": "node src/index.js",
+    "db:stats": "node -e \"const {Repository}=require('./src/db/repository');const db=new Repository(process.env.DB_PATH||'data/jobs.sqlite');console.log(db.getStats());console.log('dupes',db.listDuplicateCanonicalUrls());console.log('quality',db.listCanonicalQualityIssues());db.close();\"",
+    "db:cleanup": "node -e \"const {Repository}=require('./src/db/repository');const db=new Repository(process.env.DB_PATH||'data/jobs.sqlite');console.log(db.cleanup());console.log(db.getStats());db.close();\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "commander": "^14.0.3",
+    "dotenv": "^17.4.2",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3",
+    "playwright": "^1.59.1"
+  }
+}
