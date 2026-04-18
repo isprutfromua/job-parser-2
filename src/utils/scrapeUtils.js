@@ -75,7 +75,7 @@ async function gotoWithRetry(page, url, logger, options = {}) {
 async function clickLoadMore(page, selector, logger) {
   const control = page.locator(selector).first();
   if (!(await control.count())) {
-    return false;
+    return { found: false, changed: false };
   }
 
   const before = await page.locator("a[href]").count();
@@ -83,19 +83,23 @@ async function clickLoadMore(page, selector, logger) {
   await control.scrollIntoViewIfNeeded();
   await control.click({ timeout: 15000 });
 
-  await page.waitForFunction(
-    ({ selector: buttonSelector, beforeCount }) => {
-      const links = document.querySelectorAll("a[href]").length;
-      const button = document.querySelector(buttonSelector);
-      return links > beforeCount || !button;
-    },
-    { selector, beforeCount: before },
-    { timeout: 15000 },
-  ).catch(() => {
-    logger.warn({ selector }, "Load-more click did not show observable changes");
-  });
+  const changed = await page
+    .waitForFunction(
+      ({ selector: buttonSelector, beforeCount }) => {
+        const links = document.querySelectorAll("a[href]").length;
+        const button = document.querySelector(buttonSelector);
+        return links > beforeCount || !button;
+      },
+      { selector, beforeCount: before },
+      { timeout: 15000 },
+    )
+    .then(() => true)
+    .catch(() => {
+      logger.warn({ selector }, "Load-more click did not show observable changes");
+      return false;
+    });
 
-  return true;
+  return { found: true, changed };
 }
 
 async function evaluateAnchors(page, predicateSource) {

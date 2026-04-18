@@ -18,13 +18,16 @@ const {
 } = require("./utils/telegram");
 
 const MAX_PAGES_CAP = 5;
+const DEFAULT_CONCURRENT_QUERIES = Number(process.env.CONCURRENT_QUERIES || 3);
 
 const SOURCE_RATE_LIMIT_MS = {
-  robota: Number(process.env.RATE_LIMIT_ROBOTA_MS || 1800),
-  work: Number(process.env.RATE_LIMIT_WORK_MS || 1600),
-  djinni: Number(process.env.RATE_LIMIT_DJINNI_MS || 1800),
-  dou_family: Number(process.env.RATE_LIMIT_DOU_FAMILY_MS || 1500),
+  robota: Number(process.env.RATE_LIMIT_ROBOTA_MS || 900),
+  work: Number(process.env.RATE_LIMIT_WORK_MS || 800),
+  djinni: Number(process.env.RATE_LIMIT_DJINNI_MS || 900),
+  dou_family: Number(process.env.RATE_LIMIT_DOU_FAMILY_MS || 700),
 };
+const RATE_LIMIT_MIN_DELAY_MS = Number(process.env.RATE_LIMIT_MIN_DELAY_MS || 150);
+const RATE_LIMIT_JITTER_MS = Number(process.env.RATE_LIMIT_JITTER_MS || 150);
 
 const NAV_TIMEOUT_MS = Number(process.env.NAV_TIMEOUT_MS || 20000);
 const NAV_RETRIES = Number(process.env.NAV_RETRIES || 1);
@@ -39,6 +42,13 @@ function cloneKnownMap(knownByQuery) {
     out.set(queryKey, new Set(set));
   }
   return out;
+}
+
+function sourceDelayMs(source, jobsOnCurrentPage = 0) {
+  const configured = SOURCE_RATE_LIMIT_MS[source] || 800;
+  const adaptiveBase = jobsOnCurrentPage > 0 ? Math.floor(configured * 0.6) : configured;
+  const jitter = RATE_LIMIT_JITTER_MS > 0 ? Math.floor(Math.random() * RATE_LIMIT_JITTER_MS) : 0;
+  return Math.max(RATE_LIMIT_MIN_DELAY_MS, adaptiveBase + jitter);
 }
 
 async function processQuery({
@@ -146,40 +156,30 @@ async function processQuery({
       if (next.kind === "url") {
         const previousTopJob = extracted[0] ? extracted[0].canonicalUrl : null;
 
-        await delay(SOURCE_RATE_LIMIT_MS[query.source] || 1500);
+        await delay(sourceDelayMs(query.source, extracted.length));
         await gotoWithRetry(page, next.value, logger, {
           retries: NAV_RETRIES,
           timeoutMs: NAV_TIMEOUT_MS,
         });
 
-        if (next.validateContentChange && previousTopJob) {
-          const after = await adapter.extractJobs(page, query);
-          const newTopJob = after[0] ? after[0].canonicalUrl : null;
-          if (!newTopJob || newTopJob === previousTopJob) {
-            summary.stopTrigger = {
-              type: "content-not-changed",
-              page: pageNumber,
-              url: next.value,
-            };
-            return summary;
-          }
+        if (next.validateContentChange && previousTopJob && page.url() === currentUrl) {
+          summary.stopTrigger = {
+            type: "content-not-changed",
+            page: pageNumber,
+            url: next.value,
+          };
+          return summary;
         }
 
         currentUrl = next.value;
       } else if (next.kind === "click") {
-        const beforeFirst = extracted[0] ? extracted[0].canonicalUrl : null;
-        const beforeCount = extracted.length;
-
-        await delay(SOURCE_RATE_LIMIT_MS[query.source] || 1500);
-        const clicked = await clickLoadMore(page, next.selector, logger);
-        if (!clicked) {
+        await delay(sourceDelayMs(query.source, extracted.length));
+        const clickResult = await clickLoadMore(page, next.selector, logger);
+        if (!clickResult.found) {
           summary.stopTrigger = { type: "load-more-not-found", page: pageNumber };
           return summary;
         }
-
-        const after = await adapter.extractJobs(page, query);
-        const afterFirst = after[0] ? after[0].canonicalUrl : null;
-        if (after.length <= beforeCount && beforeFirst === afterFirst) {
+        if (!clickResult.changed) {
           summary.stopTrigger = { type: "load-more-no-change", page: pageNumber };
           return summary;
         }
@@ -200,7 +200,7 @@ async function processQuery({
   }
 }
 
-async function runCrawler({ queryKey, maxPages }) {
+async function runCrawler({ queryKey, maxPages, concurrency }) {
   const logger = createLogger();
   const dbPath = process.env.DB_PATH || path.join(process.cwd(), "data", "jobs.sqlite");
   const repository = new Repository(dbPath);
@@ -227,12 +227,18 @@ async function runCrawler({ queryKey, maxPages }) {
   });
 
   const runSummaries = [];
+  const safeConcurrency = Math.max(1, Math.min(concurrency || DEFAULT_CONCURRENT_QUERIES, selectedQueries.length));
 
   try {
-    for (const query of selectedQueries) {
+    runSummaries.length = selectedQueries.length;
+
+    let nextIndex = 0;
+
+    const runOne = async (index) => {
+      const query = selectedQueries[index];
       const adapter = ADAPTERS[query.source];
       if (!adapter) {
-        runSummaries.push({
+        runSummaries[index] = {
           queryKey: query.queryKey,
           title: query.title,
           url: query.url,
@@ -242,25 +248,40 @@ async function runCrawler({ queryKey, maxPages }) {
           newJobs: [],
           stopTrigger: { type: "adapter-missing" },
           errors: [`No adapter for source ${query.source}`],
-        });
-        continue;
+        };
+        return;
       }
 
       const page = await context.newPage();
-      const summary = await processQuery({
-        page,
-        query,
-        adapter,
-        repository,
-        baselineKnown,
-        mutableKnown: knownByQuery,
-        logger,
-        maxPages,
-      });
+      try {
+        runSummaries[index] = await processQuery({
+          page,
+          query,
+          adapter,
+          repository,
+          baselineKnown,
+          mutableKnown: knownByQuery,
+          logger,
+          maxPages,
+        });
+      } finally {
+        await page.close();
+      }
+    };
 
-      runSummaries.push(summary);
-      await page.close();
-    }
+    const workers = Array.from({ length: safeConcurrency }, async () => {
+      while (true) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+        if (currentIndex >= selectedQueries.length) {
+          return;
+        }
+
+        await runOne(currentIndex);
+      }
+    });
+
+    await Promise.all(workers);
   } finally {
     await context.close();
     await browser.close();
@@ -355,6 +376,7 @@ async function main() {
     .description("Playwright + SQLite jobs scraper framework")
     .option("-q, --query <queryKey>", "Run a single query in debug mode")
     .option("--max-pages <number>", "Maximum pages per query", String(MAX_PAGES_CAP))
+    .option("--concurrency <number>", "Number of queries to process in parallel", String(DEFAULT_CONCURRENT_QUERIES))
     .option("--cleanup-db", "Cleanup database and exit", false);
 
   program.parse(process.argv);
@@ -367,16 +389,22 @@ async function main() {
   }
 
   const requestedMaxPages = Number(options.maxPages || String(MAX_PAGES_CAP));
+  const requestedConcurrency = Number(options.concurrency || String(DEFAULT_CONCURRENT_QUERIES));
 
   if (!Number.isFinite(requestedMaxPages) || requestedMaxPages <= 0) {
     throw new Error(`Invalid --max-pages value: ${options.maxPages}`);
   }
+  if (!Number.isFinite(requestedConcurrency) || requestedConcurrency <= 0) {
+    throw new Error(`Invalid --concurrency value: ${options.concurrency}`);
+  }
 
   const maxPages = Math.min(requestedMaxPages, MAX_PAGES_CAP);
+  const concurrency = Math.floor(requestedConcurrency);
 
   const result = await runCrawler({
     queryKey: options.query,
     maxPages,
+    concurrency,
   });
 
   printSummary(result);

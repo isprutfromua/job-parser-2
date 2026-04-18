@@ -80,6 +80,21 @@ Single query debug run:
 npm run crawl:debug -- --query work_remote_it --max-pages 5
 ```
 
+Parallel run (faster overall crawl):
+
+```bash
+npm run crawl -- --concurrency 3
+```
+
+Rate-limit tuning (optional via env):
+
+- `RATE_LIMIT_ROBOTA_MS`
+- `RATE_LIMIT_WORK_MS`
+- `RATE_LIMIT_DJINNI_MS`
+- `RATE_LIMIT_DOU_FAMILY_MS`
+- `RATE_LIMIT_MIN_DELAY_MS`
+- `RATE_LIMIT_JITTER_MS`
+
 ## Query Configuration
 
 All provided URLs are configured in `src/config/queries.js` with stable `queryKey` values.
@@ -136,6 +151,7 @@ npm run crawl:debug -- --query robota_ukraine_it_parttime --max-pages 3
 npm run crawl:debug -- --query work_remote_it --max-pages 3
 npm run crawl:debug -- --query djinni_remote_all --max-pages 3
 npm run crawl:debug -- --query dou_remote --max-pages 3
+npm run crawl -- --concurrency 3 --max-pages 3
 ```
 
 ## Notes
